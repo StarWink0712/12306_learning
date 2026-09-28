@@ -1,0 +1,157 @@
+# 服务器配置
+server:
+  # 应用监听端口
+  port: 9002
+
+# Spring 相关配置
+spring:
+  application:
+    # Spring 应用名称，占位符 ${unique-name:} 若未设置则为空
+    name: index12306-ticket${unique-name:}-service
+  datasource:
+    # MySQL 驱动类
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 数据库用户名
+    username: root
+    # 数据库密码
+    password: root
+    # 数据库连接 URL 及相关参数
+    url: jdbc:mysql://127.0.0.1:3306/12306_ticket?characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&transformedBitIsBoolean=true&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
+    hikari:
+      # 连接测试查询语句
+      connection-test-query: select 1
+      # 连接超时时间，单位毫秒
+      connection-timeout: 20000
+      # 空闲连接超时时间，单位毫秒
+      idle-timeout: 300000
+      # 连接池最大连接数
+      maximum-pool-size: 5
+      # 连接池最小空闲连接数
+      minimum-idle: 5
+  data:
+    redis:
+      # Redis 服务器主机
+      host: 127.0.0.1
+      # Redis 服务器端口
+      port: 6379
+      # Redis 服务器密码
+      password: 123456
+  cloud:
+    nacos:
+      discovery:
+        # Nacos 服务发现服务器地址
+        server-addr: 127.0.0.1:8848
+      config:
+        # Nacos 配置中心地址，引用 discovery 中的地址
+        server-addr: ${spring.cloud.nacos.discovery.server-addr}
+        import-check:
+          # 禁用配置导入检查
+          enabled: false
+      # Nacos 用户名
+      username: nacos
+      # Nacos 密码
+      password: nacos
+    sentinel:
+      transport:
+        # Sentinel 控制台地址
+        dashboard: localhost:8686
+        # Sentinel 客户端监听端口
+        port: 8719
+    dynamic:
+      thread-pool:
+        nacos:
+          # 从 Nacos 获取线程池配置的 data - id
+          data-id: hippo4j-nacos.yaml
+          # 从 Nacos 获取线程池配置的组
+          group: DEFAULT_GROUP
+        # 配置文件类型
+        config-file-type: yml
+        executors:
+          - # 线程池 ID
+            thread-pool-id:'select-seat-thread-pool-executor'
+            # 是否开启报警
+            alarm: false
+            # 是否允许核心线程超时
+            allow-core-thread-time-out: true
+            # 阻塞队列类型
+            blocking-queue: SynchronousQueue
+            # 核心线程池大小
+            core-pool-size: 20
+            # 最大线程池大小
+            maximum-pool-size: 40
+            # 线程存活时间
+            keep-alive-time: 9999
+            # 拒绝策略
+            rejected-handler: CallerRunsPolicy
+
+# RocketMQ 相关配置
+rocketmq:
+  # RocketMQ 名称服务器地址
+  name-server: 127.0.0.1:9876
+  producer:
+    # 生产者组名称
+    group: index12306_ticket${unique-name:}-service_common-message-execute_pg
+    # 发送消息超时时间，单位毫秒
+    send-message-timeout: 2000
+    # 同步发送失败重试次数
+    retry-times-when-send-failed: 1
+    # 异步发送失败重试次数
+    retry-times-when-send-async-failed: 1
+
+# MyBatis - Plus 相关配置
+mybatis-plus:
+  global-config:
+    db-config:
+      # 逻辑删除字段
+      logic-delete-field: delFlag
+      # 逻辑删除值
+      logic-delete-value: 1
+      # 逻辑未删除值
+      logic-not-delete-value: 0
+  configuration:
+    # 日志实现类，输出日志到控制台
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  # MyBatis 映射文件位置
+  mapper-locations: classpath:mapper/*.xml
+
+# 自定义框架相关配置
+framework:
+  fastjson:
+    # FastJSON 的安全模式配置，具体含义依框架定义
+    safa-mode: true
+  cache:
+    redis:
+      # Redis 缓存值超时时间
+      value-timeout: 16
+      # Redis 缓存值超时时间单位
+      value-time-unit: days
+
+# Feign 相关配置
+feign:
+  client:
+    config:
+      default:
+        # Feign 客户端连接超时时间，单位毫秒
+        connectTimeout: 5000
+        # Feign 日志级别，只记录请求和响应头部
+        loggerLevel: HEADERS
+        # Feign 客户端读取超时时间，单位毫秒
+        readTimeout: 5000
+  httpclient:
+    # 禁用 Apache HttpClient
+    enabled: false
+  okhttp:
+    # 启用 OkHttp 作为 Feign 的 HTTP 客户端
+    enabled: true
+
+# Spring Boot Actuator 相关配置
+management:
+  endpoints:
+    web:
+      exposure:
+        # 暴露所有管理端点
+        include: '*'
+  metrics:
+    tags:
+      # 使用 Spring 应用名称作为指标标签
+      application: ${spring.application.name}

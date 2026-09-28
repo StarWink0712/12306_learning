@@ -1,0 +1,47 @@
+spring:
+  cloud:
+    # 你配置中的“路由”是一种应用层路由，它利用 API 网关作为技术实现，通过反向代理和服务发现机制，
+    # 根据 URL 路径谓词来智能地将客户端请求分发到后端的各个微服务中去。
+    gateway:
+      routes:
+        - id: index12306-user-service
+          uri: lb://index12306-user${unique-name:}-service/api/user-service/**
+          predicates:
+            - Path=/api/user-service/**
+          filters:
+            - name: TokenValidate
+              args:
+                blackPathPre:
+                  - /api/user-service/passenger
+                  - /api/user-service/query
+                  - /api/user-service/logout
+                  - /api/user-service/deletion
+
+        - id: index12306-ticket-service
+          uri: lb://index12306-ticket${unique-name:}-service/api/ticket-service/**
+          predicates:
+            - Path=/api/ticket-service/**
+          filters:
+            - name: TokenValidate
+              args:
+                blackPathPre:
+                  - /api/ticket-service/ticket/purchase
+                  - /api/ticket-service/ticket/pay/query
+                  - /api/ticket-service/ticket/cancel
+
+        - id: index12306-pay-service
+          uri: lb://index12306-pay${unique-name:}-service/api/pay-service/**
+          predicates:
+            - Path=/api/pay-service/**
+
+        - id: index12306-order-service
+          uri: lb://index12306-order${unique-name:}-service/api/order-service/**
+          predicates:
+            - Path=/api/order-service/**
+          filters:
+            - name: TokenValidate
+              args:
+                blackPathPre:
+                  - /api/order-service/order/ticket/query
+                  - /api/order-service/order/ticket/page
+                  - /api/order-service/order/ticket/self/page

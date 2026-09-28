@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.7</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+
+    <groupId>com.guoxu</groupId>
+    <artifactId>12306</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>12306</name>
+    <description>12306:SpringBoot3+Java17+SpringCloudAlibaba+RocketMQ等技术架构，完成铁路12306用户+购票+订单+支付服务</description>
+    <packaging>pom</packaging>
+
+    <licenses>
+        <license/>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>森七菜</name>
+            <email>xuguo0712@163.com</email>
+            <organization>University Of Electronic Science And Technology Of China</organization>
+        </developer>
+    </developers>
+
+
+    <properties>
+        <java.version>17</java.version>
+        <spotless-maven-plugin.version>2.22.1</spotless-maven-plugin.version>
+        <skip.checkstyle.check>true</skip.checkstyle.check>
+        <maven-common-plugin.version>3.1.0</maven-common-plugin.version>
+        <maven.complier.target>17</maven.complier.target>
+        <maven.complier.source>17</maven.complier.source>
+        <lombok.version>1.18.30</lombok.version>
+    </properties>
+
+<!--    子模块-->
+    <modules>
+        <module>dependencies</module>
+        <module>services</module>
+        <module>frameworks</module>
+<!--        <module>tests</module>-->
+    </modules>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+        </dependency>
+
+
+
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+    </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.opengoofy.index12306</groupId>
+                <artifactId>index12306-dependencies</artifactId>
+                <version>${project.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${maven-common-plugin.version}</version>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven-common-plugin.version}</version>
+                <configuration>
+                    <skipTests>true</skipTests>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>${maven-common-plugin.version}</version>
+                <configuration>
+                    <skipTests>true</skipTests>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless-maven-plugin.version}</version>
+                <configuration>
+                    <java>
+                        <!--<eclipse>
+                            <file>${maven.multiModuleProjectDirectory}/format/12306_spotless_formatter.xml</file>
+                        </eclipse>-->
+                        <licenseHeader>
+                            <!-- ${maven.multiModuleProjectDirectory} 爆红属于正常，并不影响编译或者运行，忽略就好 -->
+                            <file>${maven.multiModuleProjectDirectory}/format/copyright.txt</file>
+                        </licenseHeader>
+                    </java>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>apply</goal>
+                        </goals>
+                        <phase>compile</phase>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>${maven-common-plugin.version}</version>
+                <configuration>
+                    <!-- ${maven.multiModuleProjectDirectory} 爆红属于正常，并不影响编译或者运行，忽略就好 -->
+                    <configLocation>${maven.multiModuleProjectDirectory}/checkstyle/12306_checkstyle.xml
+                    </configLocation>
+                    <!-- ${maven.multiModuleProjectDirectory} 爆红属于正常，并不影响编译或者运行，忽略就好 -->
+                    <suppressionsLocation>
+                        ${maven.multiModuleProjectDirectory}/checkstyle/12306_checkstyle_suppression.xml
+                    </suppressionsLocation>
+                    <!-- Do not scan the test directory for now -->
+                    <includeTestSourceDirectory>false</includeTestSourceDirectory>
+                    <consoleOutput>true</consoleOutput>
+                    <encoding>UTF-8</encoding>
+                    <skip>${skip.checkstyle.check}</skip>
+                    <violationSeverity>error</violationSeverity>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>validate</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>checkstyle</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.6.1</version>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

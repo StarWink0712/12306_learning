@@ -1,0 +1,81 @@
+server:
+  # 这个服务运行在9003端口
+  port: 9003
+
+spring:
+  application:
+    # 服务名为 index12306-order-service，这会是它在服务注册中心（Nacos）中的唯一标识。
+    name: index12306-order${unique-name:}-service
+  datasource:
+    # 它没有使用传统的 com.mysql.cj.jdbc.Driver，而是使用了 ShardingSphereDriver。
+    # 这表明该服务的数据库不是单一实例，而是采用了**数据库分片（Sharding）**技术。
+    driver-class-name: org.apache.shardingsphere.driver.ShardingSphereDriver
+    # 具体的 sharding 规则（比如按用户 ID 取模分库，按订单创建月份分表等）
+    # 被定义在外部文件 shardingsphere-config.yaml 中，实现了业务代码与分片逻辑的解耦。
+    url: jdbc:shardingsphere:classpath:shardingsphere-config.yaml
+  cloud:
+    nacos:
+      discovery:
+        # 服务会把自己注册到 127.0.0.1:8848 的 Nacos 服务器上，这样 API 网关和其他微服务就能发现并调用它。这是微服务架构的基础。
+        server-addr: 127.0.0.1:8848
+      password: nacos
+      username: nacos
+    # Sentinel: 集成了 Sentinel 进行流量控制和服务保护。这至关重要，尤其是在抢票或促销场景下，可以防止瞬间的巨大流量冲垮订单服务。它可以实现：
+    # 流量控制：根据预设的规则，对进入订单服务的请求进行限流，防止系统过载。例如，防止黄牛对同一个热门车次进行疯狂下单。
+    # 服务保护：对订单服务的关键接口进行保护，当服务出现异常或性能下降时，及时触发熔断机制，防止连锁故障。
+    sentinel:
+      transport:
+        dashboard: localhost:8686
+        port: 8719
+  data:
+    # Redis: 订单服务会使用 Redis 缓存来存储订单相关数据，如订单状态、订单详情等。这可以显著提高查询效率，减少数据库压力。
+    # 缓存过期时间为 16 天，这意味着如果订单在 16 天内没有被更新，缓存就会过期。
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: 123456
+
+mybatis-plus:
+  global-config:
+    db-config:
+      # 逻辑删除: 配置了全局的逻辑删除。
+      # 当执行删除订单操作时，并不会从数据库物理删除该行记录，而是将 del_flag 字段的值更新为 1。
+      # 逻辑删除字段 delFlag，值为 1 表示已删除，0 表示未删除。
+      logic-delete-field: delFlag
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  configuration:
+    # 开启 MyBatis 日志输出，方便调试和性能分析。
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  # mapper-locations: classpath:mapper/*.xml
+
+framework:
+  fastjson:
+    safa-mode: true
+  cache:
+    # Redis 缓存配置,最长16天
+    redis:
+      value-timeout: 16
+      value-time-unit: days
+
+rocketmq:
+  name-server: 127.0.0.1:9876
+  producer:
+    # 生产者组名为 index12306_order${unique-name:}-service_common-message-execute_pg，这是为了与其他微服务进行解耦，确保消息的正确路由和处理。
+    # 业务解耦: 当一个订单成功创建后，订单服务不需要亲自去调用库存服务、积分服务、通知服务等。它只需发送一条“订单已创建”的消息到 RocketMQ。
+    # 其他相关服务（如库存服务、积分服务、通知服务）订阅这个消息并各自完成后续处理。这大大降低了服务间的耦合度。
+    group: index12306_order${unique-name:}-service_common-message-execute_pg
+    send-message-timeout: 2000
+    retry-times-when-send-failed: 1
+    retry-times-when-send-async-failed: 1
+
+management:
+  # Actuator 暴露: include: '*' 表示暴露了所有 Spring Boot Actuator 的监控端点（如 /health, /metrics, /beans）。
+  # 这为服务的健康检查、性能监控（对接 Prometheus、Grafana）和线上诊断提供了强大的支持。
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  metrics:
+    tags:
+      application: ${spring.application.name}

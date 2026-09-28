@@ -1,0 +1,202 @@
+# Apache ShardingSphere框架的配置文件，用于定义数据库分片和加密规则
+# 适用于12306项目的订单服务(order-service)，主要用于数据分片和敏感信息加密配置
+
+# 是Apache ShardingSphere框架的配置文件，用于定义数据库分片和加密规则。
+# 在12306项目中，这个文件主要用于订单服务(order-service)的数据分片和敏感信息加密配置。
+# 该文件的主要功能：
+
+# 1. 数据源配置 ：
+
+#  - 配置了两个数据源(ds_0和ds_1)，分别连接到不同的MySQL数据库实例(12306_order_0和12306_order_1)
+#  - 每个数据源使用HikariCP连接池优化数据库连接性能
+#2. 分库分表规则(SHARDING) ：
+
+# - 定义了订单相关表的分片策略：t_order、t_order_item和t_order_item_passenger
+# v- 使用复合分片策略(complex)，基于user_id和order_sn进行分片
+#- 配置了自定义分片算法(CLASS_BASED)和标准哈希取模算法(HASH_MOD)
+# - 实现了数据水平分片，将数据分散到多个数据库和表中
+#3. 数据加密(ENCRYPT) ：#
+
+# - 对敏感信息(身份证号id_card和手机号phone)进行AES加密
+#- 确保用户个人敏感信息在数据库中以加密形式存储
+#ShardingSphere的作用：
+
+#- 性能优化 ：通过分库分表解决单库单表数据量过大导致的性能瓶颈
+#- 扩展性 ：支持水平扩展，满足业务增长需求
+#- 数据安全 ：提供数据加密功能，保护敏感信息
+#- 透明访问 ：对应用层提供统一的数据访问接口，屏蔽底层分片细节
+# 数据源配置部分：定义所有可用的数据库连接信息
+dataSources:
+  # 定义第一个数据源，名称为ds_0
+  ds_0:
+    # 指定数据源连接池类，这里使用HikariCP连接池（高性能连接池）
+    dataSourceClassName: com.zaxxer.hikari.HikariDataSource
+    # 指定数据库驱动类，这里使用MySQL 8.x的JDBC驱动
+    driverClassName: com.mysql.cj.jdbc.Driver
+    # 数据库连接URL：
+    # - 连接地址为本地127.0.0.1:3306，数据库名为12306_order_0
+    # - 附加参数：useUnicode=true（启用Unicode编码）、characterEncoding=UTF-8（字符编码为UTF-8）
+    # - rewriteBatchedStatements=true（优化批量插入性能）、allowMultiQueries=true（允许批量执行SQL）
+    # - serverTimezone=Asia/Shanghai（设置时区为上海时区）、allowPublicKeyRetrieval=true（允许获取服务器公钥）
+    jdbcUrl: jdbc:mysql://127.0.0.1:3306/12306_order_0?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    # 数据库登录用户名
+    username: root
+    # 数据库登录密码
+    password: root
+
+  # 定义第二个数据源，名称为ds_1（与ds_0结构一致，对应数据库12306_order_1）
+  ds_1:
+    dataSourceClassName: com.zaxxer.hikari.HikariDataSource
+    driverClassName: com.mysql.cj.jdbc.Driver
+    jdbcUrl: jdbc:mysql://127.0.0.1:3306/12306_order_1?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+
+# 规则配置部分：包含分库分表(SHARDING)和数据加密(ENCRYPT)规则
+rules:
+  # 分库分表规则定义（!SHARDING是ShardingSphere的规则标识）
+  - !SHARDING
+    # 表级分片规则配置：指定需要分片的表及对应的策略
+    tables:
+      # 订单主表t_order的分片配置
+      t_order:
+        # 实际数据节点：定义数据分布在哪些库和表
+        # ds_${0..1}表示数据源为ds_0和ds_1；t_order_${0..31}表示每个库中有t_order_0到t_order_31共32张表
+        actualDataNodes: ds_${0..1}.t_order_${0..31}
+        # 分库策略：决定数据分到哪个数据源（库）
+        databaseStrategy:
+          # 复合分片策略：基于多个字段进行分片
+          complex:
+            # 分片列：使用user_id（用户ID）和order_sn（订单编号）作为分片依据
+            shardingColumns: user_id,order_sn
+            # 分片算法名称：关联到下方shardingAlgorithms中定义的order_database_complex_mod算法
+            shardingAlgorithmName: order_database_complex_mod
+        # 分表策略：决定数据分到当前库的哪个表
+        tableStrategy:
+          complex:
+            shardingColumns: user_id,order_sn
+            shardingAlgorithmName: order_table_complex_mod
+
+      # 订单项表t_order_item的分片配置（与t_order类似）
+      t_order_item:
+        actualDataNodes: ds_${0..1}.t_order_item_${0..31}
+        databaseStrategy:
+          complex:
+            shardingColumns: user_id,order_sn
+            shardingAlgorithmName: order_item_database_complex_mod
+        tableStrategy:
+          complex:
+            shardingColumns: user_id,order_sn
+            shardingAlgorithmName: order_item_table_complex_mod
+
+      # 订单-乘客关联表t_order_item_passenger的分片配置
+      t_order_item_passenger:
+        actualDataNodes: ds_${0..1}.t_order_item_passenger_${0..31}
+        # 分库策略：标准分片策略（基于单个字段）
+        databaseStrategy:
+          standard:
+            # 分片列：使用id_card（身份证号）作为分片依据
+            shardingColumn: id_card
+            # 分片算法名称：关联到order_passenger_relation_database_mod算法
+            shardingAlgorithmName: order_passenger_relation_database_mod
+        # 分表策略：标准分片策略
+        tableStrategy:
+          standard:
+            shardingColumn: id_card
+            shardingAlgorithmName: order_passenger_relation_table_mod
+
+    # 分片算法配置：定义所有分片策略中使用的具体算法
+    shardingAlgorithms:
+      # 订单表分库算法（名称与t_order的databaseStrategy对应）
+      order_database_complex_mod:
+        # 算法类型：基于自定义类实现（CLASS_BASED）
+        type: CLASS_BASED
+        # 算法参数配置
+        props:
+          # 自定义算法的全类名：指定具体实现类
+          algorithmClassName: org.opengoofy.index12306.biz.orderservice.dao.algorithm.OrderCommonDataBaseComplexAlgorithm
+          # 分片总数（用于算法内部计算）
+          sharding-count: 32
+          # 表分片数量（用于算法内部计算）
+          table-sharding-count: 16
+          # 策略类型：复合策略（与分库策略的complex对应）
+          strategy: complex
+
+      # 订单表分表算法
+      order_table_complex_mod:
+        type: CLASS_BASED
+        props:
+          algorithmClassName: org.opengoofy.index12306.biz.orderservice.dao.algorithm.OrderCommonTableComplexAlgorithm
+          sharding-count: 32
+          strategy: complex
+
+      # 订单项表分库算法
+      order_item_database_complex_mod:
+        type: CLASS_BASED
+        props:
+          algorithmClassName: org.opengoofy.index12306.biz.orderservice.dao.algorithm.OrderCommonDataBaseComplexAlgorithm
+          sharding-count: 32
+          table-sharding-count: 16
+          strategy: complex
+
+      # 订单项表分表算法
+      order_item_table_complex_mod:
+        type: CLASS_BASED
+        props:
+          algorithmClassName: org.opengoofy.index12306.biz.orderservice.dao.algorithm.OrderCommonTableComplexAlgorithm
+          sharding-count: 32
+          strategy: complex
+
+      # 订单-乘客关联表分库算法
+      order_passenger_relation_database_mod:
+        type: CLASS_BASED
+        props:
+          sharding-count: 32
+          table-sharding-count: 16
+          strategy: standard
+          algorithmClassName: org.opengoofy.index12306.framework.starter.database.algorithm.sharding.CustomDbHashModShardingAlgorithm
+
+      # 订单-乘客关联表分表算法
+      order_passenger_relation_table_mod:
+        # 算法类型：哈希取模算法（HASH_MOD）
+        type: HASH_MOD
+        props:
+          # 分片数量：32（即对分片列取模32，决定分到哪个表）
+          sharding-count: 32
+
+  # 数据加密规则定义（!ENCRYPT是ShardingSphere的加密规则标识）
+  - !ENCRYPT
+    # 表级加密配置：指定需要加密的表及字段
+    tables:
+      # 对t_order_item表进行加密配置
+      t_order_item:
+        # 字段加密配置
+        columns:
+          # 身份证号字段id_card的加密配置
+          id_card:
+            # 存储加密数据的数据库列名（这里与原字段名相同，即直接加密存储）
+            cipherColumn: id_card
+            # 使用的加密器名称：关联到下方encryptors中定义的common_encryptor
+            encryptorName: common_encryptor
+          # 手机号字段phone的加密配置
+          phone:
+            cipherColumn: phone
+            encryptorName: common_encryptor
+        # 查询时是否使用加密列：true表示查询时直接操作加密后的列（无需解密查询）
+        queryWithCipherColumn: true
+
+    # 加密器配置：定义加密算法及参数
+    encryptors:
+      # 通用加密器（名称与上方encryptorName对应）
+      common_encryptor:
+        # 加密算法类型：AES对称加密
+        type: AES
+        # 加密参数配置
+        props:
+          # AES加密密钥（实际生产环境需妥善保管，避免硬编码）
+          aes-key-value: d6oadClrrb9A3GWo
+
+# 全局属性配置
+props:
+  # 是否显示SQL：true表示打印ShardingSphere处理后的SQL语句，用于调试
+  sql-show: true

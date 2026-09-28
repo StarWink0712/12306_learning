@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis - 3 - mapper.dtd">
+<mapper namespace="org.opengoofy.index12306.biz.ticketservice.dao.mapper.SeatMapper">
+
+    <!--
+    获取列车车厢余票集合。
+    参数类型为 org.opengoofy.index12306.biz.ticketservice.dao.entity.SeatDO，
+    结果类型为 Integer，即每个车厢的余票数量。
+    这段 MyBatis 的 XML 映射文件定义了两个 SQL 查询。
+    第一个查询 listSeatRemainingTicket 用于统计特定列车、起始站、终点站及车厢的余票数量。
+    第二个查询 listSeatTypeCount 用于统计特定列车、起始站、终点站及座位类型的座位数量，
+    且仅返回座位数量大于 0 的结果。每个查询都通过 parameterType 定义了传入参数类型，
+    并通过 resultType 定义了返回结果的类型。foreach 标签用于处理传入的集合参数。
+    -->
+    <select id="listSeatRemainingTicket" parameterType="org.opengoofy.index12306.biz.ticketservice.dao.entity.SeatDO"
+            resultType="Integer">
+        <!-- 统计余票数量，别名为 count -->
+        select count(*) as count
+        from t_seat
+        <!-- 筛选特定列车 ID 的座位 -->
+        where train_id = #{seatDO.trainId}
+        <!-- 筛选特定起始站的座位 -->
+        and start_station = #{seatDO.startStation}
+        <!-- 筛选特定终点站的座位 -->
+        and end_station = #{seatDO.endStation}
+        <!-- 筛选座位状态为 '0' 的座位，通常 '0' 可能表示未售出 -->
+        and seat_status = '0'
+        <!-- 筛选特定车厢号的座位，trainCarriageList 是传入的车厢号集合 -->
+        and carriage_number in
+        <foreach collection="trainCarriageList" item="carriage" open="(" separator="," close=")">
+            #{carriage}
+        </foreach>
+        <!-- 按车厢号分组，以便统计每个车厢的余票数量 -->
+        group by carriage_number
+    </select>
+
+    <!--
+    获取特定列车、起始站、终点站和座位类型的座位数量统计信息。
+    结果类型为 org.opengoofy.index12306.biz.ticketservice.dto.domain.SeatTypeCountDTO，
+    该 DTO 用于封装座位类型及对应的座位数量。
+    -->
+    <select id="listSeatTypeCount" resultType="org.opengoofy.index12306.biz.ticketservice.dto.domain.SeatTypeCountDTO">
+        <!-- 选择座位类型，并别名为 seatType，统计座位数量并别名为 seatCount -->
+        select seat_type as seatType, count(*) as seatCount
+        from t_seat
+        <!-- 筛选特定列车 ID 的座位 -->
+        where train_id = #{trainId}
+        <!-- 筛选特定起始站的座位 -->
+        and start_station = #{startStation}
+        <!-- 筛选特定终点站的座位 -->
+        and end_station = #{endStation}
+        <!-- 筛选座位状态为 '0' 的座位，通常 '0' 可能表示未售出 -->
+        and seat_status = '0'
+        <!-- 筛选特定座位类型的座位，seatTypes 是传入的座位类型集合 -->
+        and seat_type in
+        <foreach collection="seatTypes" item="seatType" open="(" separator="," close=")">
+            #{seatType}
+        </foreach>
+        <!-- 按座位类型分组 -->
+        group by seat_type
+        <!-- 仅返回座位数量大于 0 的记录 -->
+        having seatCount > 0
+    </select>
+</mapper>
